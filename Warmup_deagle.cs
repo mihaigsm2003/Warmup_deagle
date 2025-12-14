@@ -1,7 +1,7 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace deagle_only
 {
@@ -9,19 +9,57 @@ namespace deagle_only
     {
         public override string ModuleAuthor => "GSM-RO";
         public override string ModuleName => "Warmup_deagle";
-        public override string ModuleVersion => "1.0";
-        public override string ModuleDescription => "Deagle Only - Warmup";
+        public override string ModuleVersion => "1.0.1";
+        public override string ModuleDescription => "Warmup Deagle Only with config";
 
         private bool _warmupMessageSent = false;
+        private static HashSet<string> AllowedWeapons = new();
 
         public override void Load(bool hotReload)
         {
+            LoadConfig();
+
             RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
             RegisterEventHandler<EventRoundStart>(OnRoundStart);
             RegisterListener<Listeners.OnTick>(OnTick);
         }
 
-        // 🔥 Detectare warmup corectă
+        private void LoadConfig()
+        {
+            var path = Path.Combine(ModuleDirectory, "config.cfg");
+
+            if (!File.Exists(path))
+            {
+                File.WriteAllText(path,
+                    "allowed_weapons = weapon_deagle, weapon_knife\n");
+            }
+
+            var lines = File.ReadAllLines(path);
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+                    continue;
+
+                if (!line.StartsWith("allowed_weapons"))
+                    continue;
+
+                var parts = line.Split('=');
+                if (parts.Length < 2)
+                    continue;
+
+                AllowedWeapons = parts[1]
+                    .Split(',')
+                    .Select(w => w.Trim())
+                    .Where(w => !string.IsNullOrEmpty(w))
+                    .ToHashSet();
+            }
+
+            Logger.LogInformation(
+                $"[Warmup_deagle] Allowed weapons: {string.Join(", ", AllowedWeapons)}"
+            );
+        }
+
         private static bool IsWarmupActive()
         {
             var gameRulesEnt = Utilities
@@ -35,7 +73,6 @@ namespace deagle_only
             return proxy?.GameRules?.WarmupPeriod == true;
         }
 
-        // 📢 Mesaj la început de rundă (o singură dată)
         private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
         {
             if (!IsWarmupActive())
@@ -48,14 +85,10 @@ namespace deagle_only
                 return HookResult.Continue;
 
             Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
-            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
-            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
-
             _warmupMessageSent = true;
             return HookResult.Continue;
         }
 
-        // 🔁 Forțare Deagle
         private static void OnTick()
         {
             if (!IsWarmupActive())
@@ -66,43 +99,59 @@ namespace deagle_only
                 if (player == null || !player.IsValid || !player.PawnIsAlive)
                     continue;
 
-                var activeWeapon = player.PlayerPawn?.Value?
-                    .WeaponServices?.ActiveWeapon.Value;
-
-                if (activeWeapon == null)
+                var weaponServices = player.PlayerPawn?.Value?.WeaponServices;
+                if (weaponServices?.MyWeapons == null)
                     continue;
 
-                if (activeWeapon.DesignerName != "weapon_deagle")
+                foreach (var weapon in weaponServices.MyWeapons)
                 {
-                    Server.NextFrame(() =>
+                    if (weapon?.IsValid != true || weapon.Value == null)
+                        continue;
+
+                    var name = weapon.Value.DesignerName;
+
+                    if (!AllowedWeapons.Contains(name))
                     {
-                        RemoveAllWeapons(player);
-                        player.GiveNamedItem("weapon_deagle");
-                    });
+                        weapon.Value.AddEntityIOEvent(
+                            "Kill",
+                            weapon.Value,
+                            null,
+                            "",
+                            0.0f
+                        );
+                    }
                 }
             }
         }
 
-        // 🎯 Deagle la spawn
         private HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
+{
+    if (!IsWarmupActive())
+        return HookResult.Continue;
+
+    var player = @event.Userid;
+    if (player == null || !player.IsValid)
+        return HookResult.Continue;
+
+    // 🔹 Amânăm execuția până când Pawn-ul este complet respawnat
+    Server.NextFrame(() =>
+    {
+        if (!player.PawnIsAlive || player.PlayerPawn?.Value == null)
+            return;
+
+        RemoveAllWeapons(player);
+
+        // Dă armele din config
+        foreach (var weapon in AllowedWeapons)
         {
-            if (!IsWarmupActive())
-                return HookResult.Continue;
-
-            var player = @event.Userid;
-            if (player == null || !player.IsValid || !player.PawnIsAlive)
-                return HookResult.Continue;
-
-            Server.NextFrame(() =>
-            {
-                RemoveAllWeapons(player);
-                player.GiveNamedItem("weapon_deagle");
-            });
-
-            return HookResult.Continue;
+            player.GiveNamedItem(weapon);
         }
+    });
 
-        // 🧹 Ștergere arme
+    return HookResult.Continue;
+}
+
+
         private static void RemoveAllWeapons(CCSPlayerController player)
         {
             var weaponServices = player.PlayerPawn?.Value?.WeaponServices;
@@ -111,16 +160,21 @@ namespace deagle_only
 
             foreach (var weapon in weaponServices.MyWeapons)
             {
-                if (weapon?.IsValid == true && weapon.Value != null)
-                {
-                    weapon.Value.AddEntityIOEvent(
-                        "Kill",
-                        weapon.Value,
-                        null,
-                        "",
-                        0.1f
-                    );
-                }
+                if (weapon?.IsValid != true || weapon.Value == null)
+                    continue;
+
+                var name = weapon.Value.DesignerName;
+
+                if (AllowedWeapons.Contains(name))
+                    continue;
+
+                weapon.Value.AddEntityIOEvent(
+                    "Kill",
+                    weapon.Value,
+                    null,
+                    "",
+                    0.1f
+                );
             }
         }
     }
