@@ -47,7 +47,7 @@ The plugin is lightweight, automatic, and fully inactive once warmup ends.
 
 ## Author
 
-- **GSM-RO** inspired from keno awp no scop plugin
+- **GSM-RO** inspired from awp no scop plugin (https://github.com/phara1/awp_noscope)
 
 ---
 
