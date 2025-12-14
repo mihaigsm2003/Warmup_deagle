@@ -47,9 +47,9 @@ namespace deagle_only
             if (_warmupMessageSent)
                 return HookResult.Continue;
 
-            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Runda este {ChatColors.Red}DEAGLE ONLY");
-            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Runda este {ChatColors.Red}DEAGLE ONLY");
-            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Runda este {ChatColors.Red}DEAGLE ONLY");
+            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
+            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
+            Server.PrintToChatAll($" {ChatColors.Green}[Warmup]{ChatColors.Default} Round is {ChatColors.Red}DEAGLE ONLY");
 
             _warmupMessageSent = true;
             return HookResult.Continue;
