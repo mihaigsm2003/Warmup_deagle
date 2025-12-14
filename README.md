@@ -8,13 +8,11 @@ The plugin is lightweight, automatic, and fully inactive once warmup ends.
 
 ## Features
 
-- 🔫 Deagle only during warmup
-- 🤖 Applies to **players and bots**
-- 🧹 Removes all other weapons
-- 🔁 Forces Deagle if another weapon is picked up
-- 💬 Chat message on warmup start:
-  > `[Warmup] Round is DEAGLE ONLY`
-- 📴 Automatically disabled after warmup
+- 🔫 Deagle Only during warmup
+- 🤖 Works for **players and bots**
+- 🧹 Automatically removes any disallowed weapons
+- 💬 Chat message at round start: `[Warmup] Round is DEAGLE ONLY`
+- ✅ Allowed weapons are configurable via **config file**
 
 ---
 
